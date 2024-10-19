@@ -16,9 +16,9 @@
                debug="0"
                URIEncoding="UTF-8"
                secure="false"
-               scheme="https"
-               proxyName="confluence.shiningray.info"
-               proxyPort="443"
+               scheme="http"
+               proxyName=""
+               proxyPort=""
                maxHttpHeaderSize="8192" />
 
     <Engine name="Standalone"
