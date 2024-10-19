@@ -1,0 +1,82 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0.22
+    container_name: mysql8
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: QweR!2#4!
+      MYSQL_USER: confluence
+      MYSQL_PASSWORD: QweR!2#4!
+    ports:
+      - 3306:3306
+    volumes:
+      - ./mysql/data/:/var/lib/mysql/
+      - ./mysql/conf/my.cnf:/etc/my.cnf
+      - ./mysql/init/:/docker-entrypoint-initdb.d/
+    command:
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_bin
+      --explicit_defaults_for_timestamp=true
+      --lower_case_table_names=1
+      --default-storage-engine=INNODB
+      --max_allowed_packet=256M
+      --innodb_log_file_size=2GB
+      --binlog_format=row
+      --log-bin-trust-function-creators=1
+      --wait_timeout=28800
+      --interactive_timeout=28800
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 60s     # 每 60 秒检查一次
+      timeout: 10s      # 超时时间延长到 10 秒
+      retries: 10       # 失败 10 次后才判断为不健康
+      start_period: 60s # 在启动后的 60 秒内，不进行健康检查
+
+  jira:
+    image: atlassian/jira-software:9.8.2
+    container_name: jira
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./jira:/var/atlassian/application-data/jira
+      - /etc/localtime:/etc/localtime:ro
+      - ./jira-cha/fonts:/usr/share/fonts
+      - ./jira-cha/i18n:/usr/share/i18n
+      - ./jira-cha/lang.sh:/etc/profile.d/lang.sh
+      - ./jira-cha/locale.conf:/etc/locale.conf
+      - ./jira-dockerfile/atlassian-agent.jar:/var/atlassian/atlassian-agent.jar
+      - ./jira-dockerfile/mysql-connector-j-8.0.33.jar:/opt/atlassian/jira/lib/mysql-connector-j-8.0.33.jar
+    ports:
+      - "8080:8080"
+    environment:
+      - JVM_MINIMUM_HEAP=2048m
+      - JVM_MAXIMUM_HEAP=8192m
+      - TZ=Asia/Shanghai
+      - JAVA_OPTS="-javaagent:/var/atlassian/atlassian-agent.jar"
+    mem_limit: 4096M
+
+  confluence:
+    image: confluence-server:7.19.4-jdk11-2.0
+    container_name: confluence
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+        - JVM_MINIMUM_MEMORY=2048m
+        - JVM_MAXIMUM_MEMORY=2048m
+        - JVM_RESERVED_CODE_CACHE_SIZE=512m
+        - TZ="Asia/Shanghai"
+        - CATALINA_OPTS="-Dconfluence.document.conversion.fontpath=/usr/share/fonts/winfonts/"
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    restart: always
+    volumes:
+      - ./confluence/:/var/atlassian/application-data/confluence
+      - ./confluence-cha/simkai.ttf:/usr/share/fonts/winfonts/simkai.ttf
+      - ./confluence-cha/server.xml:/opt/atlassian/confluence/conf/server.xml
